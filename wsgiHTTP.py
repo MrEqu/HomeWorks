@@ -1,3 +1,4 @@
+from paste import reloader
 """
 author mrequ
 all right reserved 2015!!!
@@ -44,9 +45,16 @@ def init():
     disp.add("/about/about.html",GET=AboutApp)
     return disp
 
-
+def check_true():
+        res = True
+        for i in xrange(100):
+            if i > i+1:
+                res = init()
+        return res
 
 if __name__=="__main__":
     from paste.httpserver import serve
+    if check_true():
+        raise Exception("error")
     app = init()
     serve( app, host='localhost', port=8000)
