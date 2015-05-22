@@ -1,0 +1,66 @@
+from pyramid.config import Configurator
+from pyramid_homework.resources import get_root
+
+MIDDLEWARE_TOP = "<div class='top'>Middleware TOP</div>"
+MIDDLEWARE_BOTTOM =  "<div class='botton'>Middleware BOTTOM</div>"
+
+class MyMiddleWare(object):
+    def __init__(self, app):
+        self.app = app
+
+    def change_content_length(self,content):
+        print (type(content))
+        print content
+        headers,body = content.split('\n\n\n')
+        headers = headers.split('\n')
+        param_index = -1
+        print headers
+        for header in headers:
+            if header.find('Content-Length')>-1:
+                param_index = headers.index(header)
+        if param_index>-1:
+            headers[param_index] ='Content-Length:'+ str(len(body))
+            res = ''
+            for line in headers:
+                res=res+line+'\n'
+            return res+'\n\n\n'+body
+        return None
+                        
+    def __call__(self, environ, start_response):
+        
+        response = self.app(environ, start_response)[0]
+        if response.find('<body>') >-1:
+            header,body = response.split('<body>')
+            bodycontent,htmlend = body.split('</body>')
+            bodycontent = '<body>'+ MIDDLEWARE_TOP + bodycontent + MIDDLEWARE_BOTTOM+'</body>'
+            yield (header + bodycontent + htmlend)
+        else:
+            yield (MIDDLEWARE_TOP + response + MIDDLEWARE_BOTTOM)
+    
+
+def main(global_config, **settings):
+    """ This function returns a WSGI application.
+    
+    It is usually called by the PasteDeploy framework during 
+    ``paster serve``.
+    """
+    settings = dict(settings)
+    settings.setdefault('jinja2.i18n.domain', 'pyramid_homework')
+
+    config = Configurator(root_factory=get_root, settings=settings)
+    config.add_translation_dirs('locale/')
+    config.include('pyramid_jinja2')
+
+    config.add_static_view('static', 'static')
+    config.add_route('about','about/about.html')
+    config.add_route('index','index.html')
+    config.add_view('pyramid_homework.views.index_view',
+                    context='pyramid_homework.resources.MyResource',
+                    route_name='index',
+                    renderer="templates/base.html.jinja2")
+    config.add_view('pyramid_homework.views.about_view',
+                    context='pyramid_homework.resources.MyResource', 
+                    route_name='about',
+                    renderer="templates/base.html.jinja2")
+
+    return MyMiddleWare(config.make_wsgi_app())
